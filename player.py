@@ -20,11 +20,11 @@ def youtube_supported(url: str) -> bool:
     return fwv is not None and youtube_id(url) is not None
 
 
+YT_PAGE = "https://Digital-Signae.github.io/yt.html"   # đổi thành địa chỉ trang bạn vừa host
+
 def youtube_embed_url(url: str) -> str:
     vid = youtube_id(url)
-    return (f"https://www.youtube.com/embed/{vid}?autoplay=1&mute=1&controls=0&rel=0"
-            f"&modestbranding=1&playsinline=1&loop=1&playlist={vid}")
-
+    return f"{YT_PAGE}?v={vid}"
 
 def build_video(source: str, loop: bool, on_complete=None, on_error=None, on_load=None):
     kwargs = dict(playlist=[fvt.VideoMedia(source)], autoplay=True, expand=True,
