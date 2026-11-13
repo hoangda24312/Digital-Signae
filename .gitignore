@@ -1,0 +1,4 @@
+*.env
+schema_v2_.sql
+/__pycache__
+/build

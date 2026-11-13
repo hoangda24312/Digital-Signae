@@ -1,0 +1,69 @@
+"""Dựng control cho từng loại nội dung: video, ảnh, youtube."""
+import re
+import flet as ft
+import flet_video as fvt
+
+try:                                    # YouTube cần gói flet-webview (thêm vào pyproject.toml)
+    import flet_webview as fwv
+except Exception:
+    fwv = None
+
+_YT = re.compile(r"(?:youtu\.be/|youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/|live/))([A-Za-z0-9_-]{11})")
+
+
+def youtube_id(url: str):
+    m = _YT.search(url or "")
+    return m.group(1) if m else None
+
+
+def youtube_supported(url: str) -> bool:
+    return fwv is not None and youtube_id(url) is not None
+
+
+def youtube_embed_url(url: str) -> str:
+    vid = youtube_id(url)
+    return (f"https://www.youtube.com/embed/{vid}?autoplay=1&mute=1&controls=0&rel=0"
+            f"&modestbranding=1&playsinline=1&loop=1&playlist={vid}")
+
+
+def build_video(source: str, loop: bool, on_complete=None, on_error=None, on_load=None):
+    kwargs = dict(playlist=[fvt.VideoMedia(source)], autoplay=True, expand=True,
+                  fit=ft.BoxFit.FILL, muted=True)
+    if on_error is not None:
+        kwargs["on_error"] = on_error
+    if on_load is not None:
+        kwargs["on_load"] = on_load
+    if on_complete is not None:
+        kwargs["on_complete"] = on_complete
+    mode_cls = getattr(fvt, "PlaylistMode", None) or getattr(ft, "PlaylistMode", None)
+    if loop and mode_cls is not None:
+        kwargs["playlist_mode"] = mode_cls.LOOP         # chỉ có 1 nội dung: tự lặp
+    return fvt.Video(**kwargs, controls=None)
+
+
+def build_image(item):
+    src = item.url
+    if item.path is not None and item.path.exists():
+        try:
+            src = item.path.read_bytes()                # ảnh đã tải: đọc từ máy
+        except OSError:
+            pass
+    return ft.Image(src=src, fit=ft.BoxFit.COVER, expand=True)
+
+
+def build_youtube(item):
+    if not youtube_supported(item.url):
+        return None
+    return fwv.WebView(url=youtube_embed_url(item.url), expand=True, bgcolor=ft.Colors.BLACK)
+
+
+def make_control(item, loop: bool, on_complete=None, on_error=None, on_load=None):
+    """Control tương ứng loại nội dung, hoặc None nếu không dựng được."""
+    if item.media_type == "video":
+        source = item.url if item.stream else str(item.path)
+        return build_video(source, loop, on_complete, on_error, on_load)
+    if item.media_type == "image":
+        return build_image(item)
+    if item.media_type == "youtube":
+        return build_youtube(item)
+    return None

@@ -1,0 +1,18 @@
+[project]
+name = "Video Sieu Cap Vip"
+version = "0.2.0"
+description = "Ung dung xem phim"
+dependencies = [
+    "flet>=0.27.0",
+    "flet_video",
+    "supabase",
+    "python-dotenv",
+    "httpx",
+    "flet-webview"
+]
+
+[tool.flet]
+
+[tool.flet.app]
+path = "."
+include = [".env"]
