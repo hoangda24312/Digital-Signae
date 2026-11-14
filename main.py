@@ -84,6 +84,8 @@ async def main(page: ft.Page):
     def item_limit(item):
         if item.media_type == "video":
             return item.duration_sec * 1.2 + 5 if item.duration_sec else config.VIDEO_MAX_WAIT_SEC
+        if item.media_type == "youtube":                  # hết video thì trang báo "#ended"; đây chỉ là mức chặn an toàn
+            return item.duration_sec or config.VIDEO_MAX_WAIT_SEC
         return item.duration_sec or config.DEFAULT_IMAGE_SEC
 
     async def play_item(item, single, v0, n_ready) -> bool:

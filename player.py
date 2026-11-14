@@ -22,9 +22,9 @@ def youtube_supported(url: str) -> bool:
 
 YT_PAGE = "https://hoangda24312.github.io/Digital-Signae/"   # đổi thành địa chỉ trang bạn vừa host
 
-def youtube_embed_url(url: str) -> str:
+def youtube_embed_url(url: str, loop: bool = False) -> str:
     vid = youtube_id(url)
-    return f"{YT_PAGE}?v={vid}"
+    return f"{YT_PAGE}?v={vid}" + ("&loop=1" if loop else "")
 
 def build_video(source: str, loop: bool, on_complete=None, on_error=None, on_load=None):
     kwargs = dict(playlist=[fvt.VideoMedia(source)], autoplay=True, expand=True,
@@ -51,10 +51,20 @@ def build_image(item):
     return ft.Image(src=src, fit=ft.BoxFit.COVER, expand=True)
 
 
-def build_youtube(item):
+def build_youtube(item, loop: bool = False, on_complete=None, on_error=None):
     if not youtube_supported(item.url):
         return None
-    return fwv.WebView(url=youtube_embed_url(item.url), expand=True, bgcolor=ft.Colors.BLACK)
+
+    async def on_url_change(e):
+        # trang index.html đổi #hash: "#ended-..." = video hết, "#error-..." = lỗi
+        url = getattr(e, "url", None) or str(getattr(e, "data", "") or "")
+        if "#ended" in url and on_complete is not None:
+            await on_complete(e)
+        elif "#error" in url and on_error is not None:
+            on_error(e)
+
+    return fwv.WebView(url=youtube_embed_url(item.url, loop), expand=True, bgcolor=ft.Colors.BLACK,
+                       on_url_change=on_url_change)
 
 
 def make_control(item, loop: bool, on_complete=None, on_error=None, on_load=None):
@@ -65,5 +75,5 @@ def make_control(item, loop: bool, on_complete=None, on_error=None, on_load=None
     if item.media_type == "image":
         return build_image(item)
     if item.media_type == "youtube":
-        return build_youtube(item)
+        return build_youtube(item, loop, on_complete, on_error)
     return None
