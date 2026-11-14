@@ -20,7 +20,7 @@ def youtube_supported(url: str) -> bool:
     return fwv is not None and youtube_id(url) is not None
 
 
-YT_PAGE = "https://Digital-Signae.github.io/yt.html"   # đổi thành địa chỉ trang bạn vừa host
+YT_PAGE = "https://hoangda24312.github.io/Digital-Signae/"   # đổi thành địa chỉ trang bạn vừa host
 
 def youtube_embed_url(url: str) -> str:
     vid = youtube_id(url)
