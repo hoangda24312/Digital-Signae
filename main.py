@@ -88,10 +88,36 @@ async def main(page: ft.Page):
             return item.duration_sec or config.VIDEO_MAX_WAIT_SEC
         return item.duration_sec or config.DEFAULT_IMAGE_SEC
 
+    
+    def on_youtube_error(e, single):
+        print("YouTube lỗi (thường do video cấm nhúng):", getattr(e, "url", e))
+        if single:
+            state.need_reload = True      # chỉ có mỗi nó: thử lại sau 15 giây
+        else:
+            state.item_done = True        # còn item khác: bỏ qua, sang item kế
+
     async def play_item(item, single, v0, n_ready) -> bool:
         """Phát một phần tử rồi trả về khi đến lúc qua phần tử kế (hoặc playlist đổi)."""
-        make = lambda: player.make_control(item, loop=single, on_complete=on_video_complete,
-                                           on_error=on_video_error, on_load=on_video_load)
+        token = None
+        started = 0.0
+
+        def make():
+            nonlocal token, started
+            token = object()
+            my = token
+            started = time.monotonic()
+
+            async def on_done(e):
+                # chỉ nhận sự kiện của control đang hiển thị, và không nhận trong 2 giây đầu
+                if token is not my or time.monotonic() - started < 2.0:
+                    print("Bỏ qua on_complete muộn/trùng:", item.title or item.url)
+                    return
+                state.item_done = True
+
+            on_err = (lambda e: on_youtube_error(e, single)) if item.media_type == "youtube" else on_video_error
+            return player.make_control(item, loop=single, on_complete=on_done,
+                                        on_error=on_err, on_load=on_video_load)
+
         ctrl = make()
         if ctrl is None:
             return False
@@ -103,10 +129,11 @@ async def main(page: ft.Page):
             await asyncio.sleep(config.SLICE)
             elapsed += config.SLICE
             if state.version != v0 or ready_count() != n_ready:
-                return True                                   # playlist đổi / có thêm nội dung sẵn sàng
+                print("Rời item vì playlist đổi")
+                return True
             if not single and (state.item_done or elapsed >= limit):
-                return True                                   # hết thời gian của phần tử này
-            # nội dung stream / youtube có thể đã chết do mất mạng -> dựng lại khi đã có mạng
+                print("Qua item kế:", "item_done" if state.item_done else "hết giờ", f"({elapsed:.1f}s)")
+                return True
             if (state.need_reload and not state.net_down and (item.stream or item.media_type == "youtube")
                     and time.monotonic() - state.last_reload > config.RELOAD_BACKOFF_SEC):
                 print("Mạng đã có lại, nạp lại nội dung:", item.title or item.url)
